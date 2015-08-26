@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title></title>
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap-theme.min.css">
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+</head>
+<body>
+<style>
+    .row {
+        margin-bottom: 75px;
+        margin-top: 10px;
+    }
+
+    h4 {
+        margin-top: 0px;
+        margin-bottom: 0px;
+    }
+
+</style>
+
+<div class="container-fluid">
+
+    {{#each articles }}
+        {{#with this}}
+        <div class="row">
+        {{#if thumbnail.href}}
+          {{#thumbnail}}
+            <div class="col-sm-3">
+                <a href="{{href}}"><img class="img-responsive" width=300 src="{{src}}"/></a>
+            </div>
+          {{/thumbnail}}
+          <div class="col-sm-7">
+        {{else}}
+          <div class="col-sm-10">
+        {{/if}}
+                <h4><a href="{{href}}">{{title}}</a></h4>
+                <em><small>{{ added_date }}
+                    {{#if authors}}
+                        - {{authors}}
+                    {{/if}}
+                    </small></em><br/>
+                {{ excerpt }}
+            </div>
+        </div>
+        <br/>
+        {{/with}}
+    {{/each}}
+</div>
+
+    {{#empty}}
+        <p>Error: no articles found to output.</p>
+    {{/empty}}
+
+
+</body>
+</html>
