@@ -229,7 +229,8 @@ class PocketMail(object):
         email_setup = self.getEmailSetup()
         self.config.logger.info("Sending email to " + toaddr + " from " + email_setup['sender'])
 
-        fSent = email.sendEmail(sender=email_setup['sender'], user_login=email_setup['email_login'], user_password=email_setup['email_password'], recipient=toaddr, subject=subject, html=html, smtp_server=email_setup['smtp_server'], smtp_port=email_setup['smtp_port'])
+        email.setConnection(sender=email_setup['sender'], user_login=email_setup['email_login'], user_password=email_setup['email_password'], smtp_server=email_setup['smtp_server'], smtp_port=email_setup['smtp_port'])
+        fSent = email.sendEmail(recipient_list=toaddr, subject=subject, html=html)
         if not fSent:
             self.config.logger.error("Email failed to send.")
         else:
@@ -250,7 +251,9 @@ class PocketMail(object):
             # Create a text/plain message
             text = fp.read()
         fp.close()
-        email.sendEmail(sender=email_setup['sender'], user_login=email_setup['email_login'], user_password=email_setup['email_password'], recipient=email_setup['sender'], subject=subject, html=None, text=text, smtp_server=email_setup['smtp_server'], smtp_port=email_setup['smtp_port'], files=[self.config._logfilename])
+        email.setConnection(sender=email_setup['sender'], user_login=email_setup['email_login'], user_password=email_setup['email_password'], smtp_server=email_setup['smtp_server'], smtp_port=email_setup['smtp_port'])
+
+        email.sendEmail(recipient_list=email_setup['sender'], subject=subject, html=None, text=text, files=[self.config._logfilename])
 
 
 pck = PocketMail()
