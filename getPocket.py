@@ -11,7 +11,7 @@ from uemail.uemail import UEmailSend
 
 xstr = lambda s: s or ""
 
-DEV_DEBUG = True
+DEV_DEBUG = False
 
 class PocketMail(object):
 
@@ -157,8 +157,14 @@ class PocketMail(object):
                 if dictTagList[tag]['date_last_sent']:
                     eplastdate = int(time.mktime(time.strptime(dictTagList[tag]['date_last_sent'], pattern)))
 
+                if tag.upper() != "__ALL_TAGS__":
+                    data = pck.instance.get(detailType="complete", contentType="article", sort="oldest", tag=tag, since=eplastdate)
+                else:
+                    #
+                    # __ALL_TAGS__ is a special case meaning don't filter by tag at all
+                    #
+                    data = pck.instance.get(detailType="complete", contentType="article", sort="oldest", tag=None, since=eplastdate)
 
-                data = pck.instance.get(detailType="complete", contentType="article", sort="oldest", tag=tag, since=eplastdate)
 
                 first_title = ""
                 if not( data and len(data) > 0 and 'list' in data[0] and len(data[0]['list']) >0):
@@ -184,6 +190,13 @@ class PocketMail(object):
                                 authorlist.append(articles[a]['authors'][i]['name'])
                             authors_line = ", ".join(authorlist)
                             item['authors'] = "-- " + authors_line
+                        item['tags'] = None
+                        if 'tags' in articles[a]:
+                            taglist = []
+                            for i in articles[a]['tags']:
+                                taglist.append(articles[a]['tags'][i]['tag'])
+                            item['tags'] = ", ".join(taglist)
+
             #            import time
             #            item['added_date'] = time.strftime('%m-%d-%Y', time.localtime(float(articles[a]['time_added'])))
 
@@ -216,8 +229,8 @@ class PocketMail(object):
     def getEmailSetup(self):
         email_setup = dict(self.config.items("AuthEmail"))
 
-        if 'from_address' not in email_setup and 'smtp_server' not in email_setup:
-            self.config.logger.error("Required email parameters 'from_address' and 'smtp_server' not found in config file.  Cannot send email.")
+        if 'sender' not in email_setup and 'smtp_server' not in email_setup:
+            self.config.logger.error("Required email parameters 'sender ' and 'smtp_server' not found in config file.  Cannot send email.")
             raise ValueError("Required email parameters 'from_address' and 'smtp_server' not found in config file.  Cannot send email.")
 
         return email_setup

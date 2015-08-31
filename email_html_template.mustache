@@ -48,7 +48,10 @@
                         - {{authors}}
                     {{/if}}
                     </small></em><br/>
-                {{ excerpt }}
+                {{ excerpt }}<br/>
+                {{#if tags}}
+                    <em><small>tags: {{ tags }}</small></em><br/>
+                {{/if}}
             </div>
         </div>
         <br/>
@@ -60,6 +63,7 @@
         <p>Error: no articles found to output.</p>
     {{/empty}}
 
+</div>
 
 </body>
 </html>
