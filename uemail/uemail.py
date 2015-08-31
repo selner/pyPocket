@@ -56,9 +56,11 @@ class UEmailSend():
         sender_name, sender_addr = parseaddr(sender)
 
         if isinstance(recipient_list, basestring):
-            templ = recipient_list.split(",")
-            if templ and len(templ) > 1:
-                recipient_list = templ
+            rlist = recipient_list.split(",")
+            if rlist and len(rlist) > 1:
+                recipient_list = rlist
+            else:
+                recipient_list = [recipient_list]
 
         # 'alternative’ MIME type – HTML and plain text bundled in one e-mail message
         msg = MIMEMultipart()
