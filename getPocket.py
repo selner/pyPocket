@@ -2,58 +2,36 @@ __author__ = 'bryan'
 import pocket
 
 from pocket import Pocket
-import re, datetime
+import datetime
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
-import json
 import os, codecs
-from uemail.uemail import UEmailSend
+import collections
+import operator
 
-xstr = lambda s: s or ""
+DAYSBACK=14
 
-DEV_DEBUG = False
-
-class PocketMail(object):
-
+class PocketMail():
+    config = None
     _all_articles = {}
     _prev_data_articles = {}
-    _previous_data_file = None
+    _tag_processing_data = None
     _pocket_instance = None
     _tags_to_email = None
-    _cfg_filename = "./config-bryan.ini"
 
     def __init__(self):
         import bsconfig
         self.config = bsconfig.BSConfig()
-        self.config.loadConfigFromFile(self._cfg_filename)
-        self._loadPreviousData()
+        self.config.loadConfigFromFile("./config-bryan.ini")
         self._initPocket()
         self._initTemplate()
 
-    def saveConfigToFile(self):
-        f = open(self._cfg_filename, mode='w')
-        self.config.write(f)
-        f.close()
-
-
-    def _loadPreviousData(self):
-        import codecs, os
-        self._previous_data_file = self.config.get("Input", "previous_data_file", None)
-        if self._previous_data_file and os.path.isfile(self._previous_data_file ):
-            f = codecs.open(self._previous_data_file, encoding='utf-8', mode='r')
-            self._prev_data_articles = json.load( f )
-            f.close()
-
     def _initPocket(self):
-        from oauth2client.file import Storage
-#        storage = Storage(os.path.join(self.config.output_folder, "oauth.dat"))
-#        access_token = storage.get()
         access_token = u'3d50b538-8bfc-d571-1488-fabf77'
         consumer_key = self.config.get("AuthPocket", "consumer_key", None)
         if access_token is None:
             redirect_uri = self.config.get("AuthPocket", "redirect_uri", None)
             access_token = Pocket.auth(consumer_key=consumer_key, redirect_uri=redirect_uri)
-#            storage.put(access_token)
 
         self._pocket_instance = pocket.Pocket(consumer_key, access_token)
 
@@ -74,14 +52,10 @@ class PocketMail(object):
             tag = option[0]
             dictTags[tag] = {}
             dictTags[tag]['tag'] = tag
-            dictTags[tag]['date_last_sent'] = None
-            values = option[1].split()
-            if len(values) > 0:
-                dictTags[tag]['email'] = values[0]
-            if len(values) > 1:
-                dictTags[tag]['date_last_sent'] = values[1]
-            if DEV_DEBUG:
-                dictTags[tag]['date_last_sent'] = None
+            if len(option) > 1:
+                dictTags[tag]['email'] = option[1]
+            if len(option) > 2:
+                dictTags[tag]['last_processed'] = option[2]
             dictTags[tag]['new_articles'] = {}
         return dictTags
 
@@ -104,16 +78,15 @@ class PocketMail(object):
 
         self.email_html_template = compiler.compile(strtempl)
 
-    def getHTMLforArticleList(self, articles):
+    def getHTMLforArticleList(self, data):
         self.config.logger.info("Generating html for article list...")
 
-        if not (articles and len(articles)>0):
+        if not (data and len(data)>0):
             self.config.logger.error("No articles found to export to html")
-            return None
 
         self.config.logger.info("Enumerating template and articles...")
         data_for_template = {
-                'articles' : articles
+                'articles' : data
             }
 
         outHTML = self.email_html_template(data_for_template)
@@ -126,11 +99,11 @@ class PocketMail(object):
                 html = self.getHTMLforArticleList(articles)
 
         if not html:
-            self.config.logger.warning("Error: no html or articles to output for keyword " + basename)
-            return
+            raise ValueError("Error: no html or articles to output to file")
 
-        strtoday = datetime.date.today().strftime("%m-%d-%Y")
+        strtoday = datetime.today().strftime("%m-%d-%Y")
         filename = strtoday+"_"+basename+".html"
+        filename = filename.replace(os.sep, "_")
         fileout = os.path.join(self.config.output_folder, filename)
 
         self.config.logger.info("Exporting test results to file '" + fileout + "'...")
@@ -141,136 +114,184 @@ class PocketMail(object):
 
         return fileout
 
-    def sendNewarticlesToEmail(self):
-        dictTagList = self.tags_to_email
-        tagsToMatch = dictTagList.keys()
-
-        if tagsToMatch:
-            for tag in tagsToMatch:
-                articles = None
-
-                self.config.logger.info(">>>>>>>>   Processing tag: '" + tag + "'   <<<<<<<<<<")
-                self.config.logger.info("Checking for articles tagged " + tag + " since " + xstr(dictTagList[tag]['date_last_sent']))
-                pattern = '%m/%d/%Y-%H:%M:%S'
-                import time
-                eplastdate = None
-                if dictTagList[tag]['date_last_sent']:
-                    eplastdate = int(time.mktime(time.strptime(dictTagList[tag]['date_last_sent'], pattern)))
-
-                if tag.upper() != "__ALL_TAGS__":
-                    data = pck.instance.get(detailType="complete", contentType="article", sort="oldest", tag=tag, since=eplastdate)
-                else:
-                    #
-                    # __ALL_TAGS__ is a special case meaning don't filter by tag at all
-                    #
-                    data = pck.instance.get(detailType="complete", contentType="article", sort="oldest", tag=None, since=eplastdate)
-
-
-                first_title = ""
-                if not( data and len(data) > 0 and 'list' in data[0] and len(data[0]['list']) >0):
-                    self.config.logger.info("No new articles found for " + tag)
-                else:
-                    articles = data[0]['list']
-                    self.config.logger.info(str(len(articles)) + " new articles found tagged " + tag)
-
-                    dictTagList[tag]['new_articles'] = articles
-                    emailArticles = []
-                    for a in articles:
-                        item = {}
-                        item['href'] = articles[a]['resolved_url']
-                        item['title'] = articles[a]['resolved_title']
-                        if not first_title:
-                            first_title = item['title']
-                        item['excerpt'] = articles[a]['excerpt']
-                        authors_line = ""
-                        item['authors'] = None
-                        if 'authors' in articles[a]:
-                            authorlist = []
-                            for i in articles[a]['authors']:
-                                authorlist.append(articles[a]['authors'][i]['name'])
-                            authors_line = ", ".join(authorlist)
-                            item['authors'] = "-- " + authors_line
-                        item['tags'] = None
-                        if 'tags' in articles[a]:
-                            taglist = []
-                            for i in articles[a]['tags']:
-                                taglist.append(articles[a]['tags'][i]['tag'])
-                            item['tags'] = ", ".join(taglist)
-
-            #            import time
-            #            item['added_date'] = time.strftime('%m-%d-%Y', time.localtime(float(articles[a]['time_added'])))
-
-                        item['added_date'] = datetime.datetime.fromtimestamp(float(articles[a]['time_added'])).strftime("%m/%d/%Y")
-                        if articles[a]['has_image'] == "1" and 'image' in articles[a]:
-                            item['thumbnail'] = {}
-                            item['thumbnail']['src'] = articles[a]['image']['src']
-                            item['thumbnail']['href'] = item['href']
-
-                        emailArticles.append(item)
-
-                    html = self.getHTMLforArticleList(articles=emailArticles)
-                    if html:
-                        if first_title:
-                            subject = "'" + first_title + "'"
-                        if len(emailArticles) > 1:
-                            subject = subject + " and " + str(len(emailArticles)) + " other " + tag + " recent articles"
-                        htmlfile = self.export_html_to_file(basename=tag, html=subject + "\n\n"+ html)
-                        if htmlfile:
-                            self.config.logger.info("Article list HTML written to " + htmlfile)
-                        self.sendEmail(html=html, text=None, toaddr=dictTagList[tag]['email'], subject=subject)
-
-                dtNow = datetime.datetime.now()
-                dictTagList[tag]['date_last_sent'] = dtNow.strftime('%m/%d/%Y-%H:%M:%S')
-                self.config.logger.info("Updating date last checked to " + dictTagList[tag]['date_last_sent'] + " for " + tag)
-                strCfgValue = dictTagList[tag]['email'] + " " + dictTagList[tag]['date_last_sent']
-                self.config.set(section="TagsToEmail", option=dictTagList[tag]['tag'], value=strCfgValue)
-                self.saveConfigToFile()
-
-    def getEmailSetup(self):
-        email_setup = dict(self.config.items("AuthEmail"))
-
-        if 'sender' not in email_setup and 'smtp_server' not in email_setup:
-            self.config.logger.error("Required email parameters 'sender ' and 'smtp_server' not found in config file.  Cannot send email.")
-            raise ValueError("Required email parameters 'from_address' and 'smtp_server' not found in config file.  Cannot send email.")
-
-        return email_setup
-
-    def sendEmail(self, html=None, text=None, toaddr=None, subject=None):
-        """With this function we send out our html email"""
-
-        email = UEmailSend()
-        email_setup = self.getEmailSetup()
-        self.config.logger.info("Sending email to " + toaddr + " from " + email_setup['sender'])
-
-        email.setConnection(sender=email_setup['sender'], user_login=email_setup['email_login'], user_password=email_setup['email_password'], smtp_server=email_setup['smtp_server'], smtp_port=email_setup['smtp_port'])
-        fSent = email.sendEmail(recipient_list=toaddr, subject=subject, html=html)
-        if not fSent:
-            self.config.logger.error("Email failed to send.")
-        else:
-            self.config.logger.info("Email sent successfully.")
-
-        return fSent
-
-    def sendRunLog(self):
-        email_setup = self.getEmailSetup()
-        self.config.logger.info("Sending run log to " + email_setup['sender'])
-
-        email = UEmailSend()
-        dtNow = datetime.datetime.now()
-        subject = "pyPocket Run log for " + dtNow.strftime('%m/%d/%Y %H:%M:%S')
-
-        with codecs.open(self.config._logfilename, encoding='utf-8', mode='rb') as fp:
-
-            # Create a text/plain message
-            text = fp.read()
-        fp.close()
-        email.setConnection(sender=email_setup['sender'], user_login=email_setup['email_login'], user_password=email_setup['email_password'], smtp_server=email_setup['smtp_server'], smtp_port=email_setup['smtp_port'])
-
-        email.sendEmail(recipient_list=email_setup['sender'], subject=subject, html=None, text=text, files=[self.config._logfilename])
-
 
 pck = PocketMail()
-pck.sendNewarticlesToEmail()
-pck.sendRunLog()
+
+articles = None
+
+from datetime import datetime, timedelta
+ndays = 120
+dtsince = timedelta(days=-ndays) + datetime.today()
+sincetimestamp = (dtsince - datetime(1970, 1, 1)).total_seconds()
+
+pck.config.logger.info("Getting pocketed items from the last " + str(ndays) + " days...")
+
+data = pck.instance.get(detailType="complete", contentType="article", sort="newest", since=sincetimestamp)
+if data and len(data) > 0:
+    articles = data[0]['list']
 
 
+articles_by_date = dict((i, articles[i]['time_added']) for i in articles if 'time_added' in articles[i])
+
+results_content = collections.OrderedDict()
+for a in articles_by_date:
+    item = {}
+    item['href'] = articles[a]['resolved_url']
+    item['title'] = articles[a]['resolved_title']
+    item['excerpt'] = articles[a]['excerpt']
+    authors_line = ""
+    if 'authors' in articles[a]:
+        authorlist = []
+        for i in articles[a]['authors']:
+            authorlist.append(articles[a]['authors'][i]['name'])
+        authors_line = ", ".join(authorlist)
+    item['authors'] = "-- " + authors_line
+    if 'tags' in articles[a]:
+        item['tags'] = [articles[a]['tags'][i]['tag'] for i in articles[a]['tags']]
+    item['added_date'] = datetime.fromtimestamp(float(articles[a]['time_added'])).strftime("%m/%d/%Y")
+    item['time_added'] = float(articles[a]['time_added'])
+    if articles[a]['has_image'] == "1" and 'image' in articles[a]:
+        item['thumbnail'] = {}
+        item['thumbnail']['src'] = articles[a]['image']['src']
+        item['thumbnail']['href'] = item['href']
+
+    results_content[item['added_date']] = item
+
+# sorted(results_content)
+
+skeys = sorted(results_content.keys())
+orderedArticles = collections.OrderedDict()
+for k in skeys:
+    orderedArticles[k] =results_content[k].copy()
+
+
+if not len(orderedArticles):
+    pck.config.logger.info("No articles found to export.")
+else:
+    html = pck.getHTMLforArticleList(data=orderedArticles)
+    htmlfile = pck.export_html_to_file(basename="articles_by_tag", html=html)
+
+
+# dictTagList = pck.tags_to_email
+
+
+#
+# tagsToMatch = dictTagList.keys()
+#
+# if tagsToMatch:
+#     for tag in tagsToMatch:
+#
+#         searchTag = tag
+#         if tag is "other":
+#             searchTag = None
+
+        # data = pck.instance.get(detailType="complete", state="unread", contentType="article", sort="newest", tag=searchTag)
+        #
+        # if data and len(data) > 0:
+        #     articles = data[0]['list']
+        # from datetime import datetime, timedelta
+        #
+        # dtsince = timedelta(days=-14) + datetime.today()
+        # sincetimestamp = (dtsince - datetime(1970, 1, 1)).total_seconds()
+        #
+        # self.config.logger.info("Exporting test results to file '" + fileout + "'...")
+        #
+        # data = pck.instance.get(detailType="complete", contentType="article", sort="newest", since=sincetimestamp)
+        # if data and len(data) > 0:
+        #     articles = data[0]['list']
+        #
+        # articles_by_date = dict((i, articles[i]['time_added']) for i in articles if 'time_added' in articles[i])
+
+    #     articles_by_date_sorted = sorted(articles_by_date, key=operator.itemgetter(1), reverse=True)
+    #
+    #     sorted_articles = collections.OrderedDict((i ,articles[i]) for i in articles_by_date_sorted)
+    #
+    #     articletags = {}
+    #     for a in sorted_articles:
+    #         if 'tags' in sorted_articles[a]:
+    #             tags = sorted_articles[a]['tags']
+    #             for t in tags:
+    #                 if t not in articletags:
+    #                     articletags[t] = 1
+    #                 else:
+    #                     articletags[t] += 1
+    #
+    #     # sortedtuple = sorted(tuple, lambda x: x['last'])
+    #     #
+    #     sorted_articletags = sorted(articletags.items(), key=operator.itemgetter(0))
+    #     results_content = collections.OrderedDict()
+    #
+    #     # for tagitem in sorted_articletags:
+    #     #     tag = tagitem[0]
+    #     #     articles_with_tag = [i for i in sorted_articles if 'tags' in sorted_articles[i] and tag in sorted_articles[i]['tags']]
+    #     #
+    #     emailArticles = collections.OrderedDict()
+    #     for a in sorted_articles:
+    #         item = {}
+    #         item['href'] = articles[a]['resolved_url']
+    #         item['title'] = articles[a]['resolved_title']
+    #         item['excerpt'] = articles[a]['excerpt']
+    #         authors_line = ""
+    #         if 'authors' in articles[a]:
+    #             authorlist = []
+    #             for i in articles[a]['authors']:
+    #                 authorlist.append(articles[a]['authors'][i]['name'])
+    #             authors_line = ", ".join(authorlist)
+    #         item['authors'] = "-- " + authors_line
+    #         if 'tags' in articles[a]:
+    #             item['tags'] = [articles[a]['tags'][i]['tag'] for i in articles[a]['tags']]
+    #         item['added_date'] = datetime.fromtimestamp(float(articles[a]['time_added'])).strftime("%m/%d/%Y")
+    #         if articles[a]['has_image'] == "1" and 'image' in articles[a]:
+    #             item['thumbnail'] = {}
+    #             item['thumbnail']['src'] = articles[a]['image']['src']
+    #             item['thumbnail']['href'] = item['href']
+    #
+    #         emailArticles[item['href']] = item
+    #
+    #     if len(emailArticles):
+    #         results_content[tag] = { 'tag' : "all", 'article_count' : 0, 'articles' : emailArticles }
+    #         # htmlfile = pck.export_html_to_file(basename=tag, html=html)
+    #         #pck.config.logger.info("Exported articles tagged " + tag + " to " + htmlfile)
+    #     else:
+    #         pck.config.logger.info("No articles tagged " + tag + " to export.")
+    #
+    # html = pck.getHTMLforArticleList(data=results_content.values())
+    # htmlfile = pck.export_html_to_file(basename="articles_by_tag", html=html)
+
+
+        #
+        #
+        #
+        # #
+        # # if data and len(data) > 0:
+        # #     articles = data[0]['list']
+        #
+        # dictTagList[tag]['new_articles'] = articles
+        # emailArticles = collections.OrderedDict()
+        # for a in articles:
+        #     item = {}
+        #     item['href'] = articles[a]['resolved_url']
+        #     item['title'] = articles[a]['resolved_title']
+        #     item['excerpt'] = articles[a]['excerpt']
+        #     authors_line = ""
+        #     if 'authors' in articles[a]:
+        #         authorlist = []
+        #         for i in articles[a]['authors']:
+        #             authorlist.append(articles[a]['authors'][i]['name'])
+        #         authors_line = ", ".join(authorlist)
+        #     item['authors'] = "-- " + authors_line
+        #
+        #     item['added_date'] = datetime.datetime.fromtimestamp(float(articles[a]['time_added'])).strftime("%m/%d/%Y")
+        #     if articles[a]['has_image'] == "1" and 'image' in articles[a]:
+        #         item['thumbnail'] = {}
+        #         item['thumbnail']['src'] = articles[a]['image']['src']
+        #         item['thumbnail']['href'] = item['href']
+        #
+        #     emailArticles[item['href']] = item
+        #
+        # if len(emailArticles):
+        #     html = pck.getHTMLforArticleList(articles=emailArticles.values())
+        #     htmlfile = pck.export_html_to_file(basename=tag, html=html)
+        #     pck.config.logger.info("Exported articles tagged " + tag + " to " + htmlfile)
+        # else:
+        #     pck.config.logger.info("No articles tagged " + tag + " to export.")

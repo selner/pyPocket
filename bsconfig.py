@@ -129,7 +129,6 @@ class BSConfig(ConfigParser.RawConfigParser):
         filehandler.setFormatter(fmt)
         self._logger.addHandler(filehandler)
 
-        self._logger.info("****************** STARTING LOG FOR RUN **************************")
         self._logger.info("Logging output to file: '" + self._logfilename +"'")
 
     def debugprint(self):
@@ -201,6 +200,3 @@ class BSConfig(ConfigParser.RawConfigParser):
     def output_folder(self):
         return self._output_folder
 
-    @output_folder.setter
-    def output_folder(self, value):
-        self._output_folder = helpers.setupOutputFolder(value)
