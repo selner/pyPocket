@@ -16,13 +16,13 @@
 <body>
 <style>
     .row {
-        margin-bottom: 75px;
-        margin-top: 10px;
+    margin-bottom: 125px;
+    margin-top: 10px;
     }
 
     h4 {
-        margin-top: 0px;
-        margin-bottom: 0px;
+    margin-top: 0px;
+    margin-bottom: 0px;
     }
 
 </style>
@@ -30,40 +30,33 @@
 <div class="container-fluid">
 
     {{#each articles }}
-        {{#with this}}
         <div class="row">
-        {{#if thumbnail.href}}
-          {{#thumbnail}}
             <div class="col-sm-3">
-                <a href="{{href}}"><img class="img-responsive" width=300 src="{{src}}"/></a>
+                {{#thumbnail}}
+                    <a href="{{href}}"><img class="img-responsive" width=300 src="{{src}}"/></a>
+                {{/thumbnail}}
             </div>
-          {{/thumbnail}}
-          <div class="col-sm-7">
-        {{else}}
-          <div class="col-sm-10">
-        {{/if}}
+            <div class="col-sm-5">
                 <h4><a href="{{href}}">{{title}}</a></h4>
-                <em><small>{{ added_date }}
-                    {{#if authors}}
-                        - {{authors}}
-                    {{/if}}
-                    </small></em><br/>
-                {{ excerpt }}<br/>
-                {{#if tags}}
-                    <em><small>tags: {{ tags }}</small></em><br/>
-                {{/if}}
+                <em>
+                    <small>{{ added_date }} {{#if authors}}- {{authors}}{{/if}}</small>
+                </em>
+                {{#each tags }}
+                    {{#with this}}
+                        <span class="label label-default">{{this}}</span>
+                    {{/with}}
+                {{/each}}<br/>
+                <!-- <small><a href="{{href}}">{{href}}</a></small>-->
+                {{ excerpt }}
             </div>
         </div>
-        <br/>
-        {{/with}}
     {{/each}}
 </div>
 
-    {{#empty}}
-        <p>Error: no articles found to output.</p>
-    {{/empty}}
+{{#empty}}
+    <p>Error: no articles found to output.</p>
+{{/empty}}
 
-</div>
 
 </body>
 </html>
