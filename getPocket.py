@@ -203,158 +203,27 @@ class PocketMail():
                 self.config.logger.error(msg)
                 raise ValueError(msg)
 
-pck = PocketMail()
-#
-# orderedArticles = pck.getArticlesSinceDate(numDays=30)
-# if not len(orderedArticles):
-#     pck.config.logger.info("No articles found to export.")
-# else:
-#     html = pck.getHTMLforArticleList(data=orderedArticles)
-#     htmlfile = pck.export_html_to_file(basename="articles_by_tag", html=html)
-#
-#
+
+if __name__ == '__main__':
+
+    pck = PocketMail()
+
+    dictTagList = pck.tags_to_email
 
 
-dictTagList = pck.tags_to_email
+    items = pck.config.items("TagsToEmail")
 
+    tagsToMatch = dictTagList.keys()
 
-items = pck.config.items("TagsToEmail")
+    if tagsToMatch:
+        for tag in tagsToMatch:
 
-tagsToMatch = dictTagList.keys()
+            orderedArticles = pck.getArticlesSinceDate(numDays=30, tag=tag)
+            if len(orderedArticles) > 0:
+                html = pck.getHTMLforArticleList(data=orderedArticles)
+                htmlfile = pck.export_html_to_file(basename=tag+"_articles", html=html)
+                emailaddr = dictTagList[tag]['email']
+                pck.sendArticleListViaEmail(emailto=emailaddr, subject="New Saved Articles Tagged '" + tag + "'", html=html)
+            else:
+                pck.config.logger.info("No articles found to export for tag '" + tag + "'.")
 
-if tagsToMatch:
-    for tag in tagsToMatch:
-
-        orderedArticles = pck.getArticlesSinceDate(numDays=30, tag=tag)
-        if len(orderedArticles) > 0:
-            html = pck.getHTMLforArticleList(data=orderedArticles)
-            htmlfile = pck.export_html_to_file(basename=tag+"_articles", html=html)
-            emailaddr = dictTagList[tag]['email']
-            pck.sendArticleListViaEmail(emailto=emailaddr, subject="New Saved Articles Tagged " + tag, html=html)
-        else:
-            pck.config.logger.info("No articles found to export for tag '" + tag + "'.")
-
-
-# dictTagList = pck.tags_to_email
-
-
-#
-# tagsToMatch = dictTagList.keys()
-#
-# if tagsToMatch:
-#     for tag in tagsToMatch:
-#
-#         searchTag = tag
-#         if tag is "other":
-#             searchTag = None
-
-        # data = pck.instance.get(detailType="complete", state="unread", contentType="article", sort="newest", tag=searchTag)
-        #
-        # if data and len(data) > 0:
-        #     articles = data[0]['list']
-        # from datetime import datetime, timedelta
-        #
-        # dtsince = timedelta(days=-14) + datetime.today()
-        # sincetimestamp = (dtsince - datetime(1970, 1, 1)).total_seconds()
-        #
-        # self.config.logger.info("Exporting test results to file '" + fileout + "'...")
-        #
-        # data = pck.instance.get(detailType="complete", contentType="article", sort="newest", since=sincetimestamp)
-        # if data and len(data) > 0:
-        #     articles = data[0]['list']
-        #
-        # articles_by_date = dict((i, articles[i]['time_added']) for i in articles if 'time_added' in articles[i])
-
-    #     articles_by_date_sorted = sorted(articles_by_date, key=operator.itemgetter(1), reverse=True)
-    #
-    #     sorted_articles = collections.OrderedDict((i ,articles[i]) for i in articles_by_date_sorted)
-    #
-    #     articletags = {}
-    #     for a in sorted_articles:
-    #         if 'tags' in sorted_articles[a]:
-    #             tags = sorted_articles[a]['tags']
-    #             for t in tags:
-    #                 if t not in articletags:
-    #                     articletags[t] = 1
-    #                 else:
-    #                     articletags[t] += 1
-    #
-    #     # sortedtuple = sorted(tuple, lambda x: x['last'])
-    #     #
-    #     sorted_articletags = sorted(articletags.items(), key=operator.itemgetter(0))
-    #     results_content = collections.OrderedDict()
-    #
-    #     # for tagitem in sorted_articletags:
-    #     #     tag = tagitem[0]
-    #     #     articles_with_tag = [i for i in sorted_articles if 'tags' in sorted_articles[i] and tag in sorted_articles[i]['tags']]
-    #     #
-    #     emailArticles = collections.OrderedDict()
-    #     for a in sorted_articles:
-    #         item = {}
-    #         item['href'] = articles[a]['resolved_url']
-    #         item['title'] = articles[a]['resolved_title']
-    #         item['excerpt'] = articles[a]['excerpt']
-    #         authors_line = ""
-    #         if 'authors' in articles[a]:
-    #             authorlist = []
-    #             for i in articles[a]['authors']:
-    #                 authorlist.append(articles[a]['authors'][i]['name'])
-    #             authors_line = ", ".join(authorlist)
-    #         item['authors'] = "-- " + authors_line
-    #         if 'tags' in articles[a]:
-    #             item['tags'] = [articles[a]['tags'][i]['tag'] for i in articles[a]['tags']]
-    #         item['added_date'] = datetime.fromtimestamp(float(articles[a]['time_added'])).strftime("%m/%d/%Y")
-    #         if articles[a]['has_image'] == "1" and 'image' in articles[a]:
-    #             item['thumbnail'] = {}
-    #             item['thumbnail']['src'] = articles[a]['image']['src']
-    #             item['thumbnail']['href'] = item['href']
-    #
-    #         emailArticles[item['href']] = item
-    #
-    #     if len(emailArticles):
-    #         results_content[tag] = { 'tag' : "all", 'article_count' : 0, 'articles' : emailArticles }
-    #         # htmlfile = pck.export_html_to_file(basename=tag, html=html)
-    #         #pck.config.logger.info("Exported articles tagged " + tag + " to " + htmlfile)
-    #     else:
-    #         pck.config.logger.info("No articles tagged " + tag + " to export.")
-    #
-    # html = pck.getHTMLforArticleList(data=results_content.values())
-    # htmlfile = pck.export_html_to_file(basename="articles_by_tag", html=html)
-
-
-        #
-        #
-        #
-        # #
-        # # if data and len(data) > 0:
-        # #     articles = data[0]['list']
-        #
-        # dictTagList[tag]['new_articles'] = articles
-        # emailArticles = collections.OrderedDict()
-        # for a in articles:
-        #     item = {}
-        #     item['href'] = articles[a]['resolved_url']
-        #     item['title'] = articles[a]['resolved_title']
-        #     item['excerpt'] = articles[a]['excerpt']
-        #     authors_line = ""
-        #     if 'authors' in articles[a]:
-        #         authorlist = []
-        #         for i in articles[a]['authors']:
-        #             authorlist.append(articles[a]['authors'][i]['name'])
-        #         authors_line = ", ".join(authorlist)
-        #     item['authors'] = "-- " + authors_line
-        #
-        #     item['added_date'] = datetime.datetime.fromtimestamp(float(articles[a]['time_added'])).strftime("%m/%d/%Y")
-        #     if articles[a]['has_image'] == "1" and 'image' in articles[a]:
-        #         item['thumbnail'] = {}
-        #         item['thumbnail']['src'] = articles[a]['image']['src']
-        #         item['thumbnail']['href'] = item['href']
-        #
-        #     emailArticles[item['href']] = item
-        #
-        # if len(emailArticles):
-        #     html = pck.getHTMLforArticleList(articles=emailArticles.values())
-        #     htmlfile = pck.export_html_to_file(basename=tag, html=html)
-        #     pck.config.logger.info("Exported articles tagged " + tag + " to " + htmlfile)
-        # else:
-        #     pck.config.logger.info("No articles tagged " + tag + " to export.")
