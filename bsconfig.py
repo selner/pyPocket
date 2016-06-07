@@ -77,7 +77,7 @@ class BSConfig(ConfigParser.RawConfigParser):
             where we don't actually have that config setting or section.  Caller
             can still use the standard .get() behavior by specifying defaultNone=False
         """
-        if defaultNone or defaultNone == None:
+        if not defaultNone:
             return self.default_get(section, option, None)
         else:
             return ConfigParser.RawConfigParser.get(self, section, option)
@@ -109,7 +109,7 @@ class BSConfig(ConfigParser.RawConfigParser):
         # set the logging level based on the config file value or
         # default to INFO level if not set
         level = self.default_get("Output", "logging_level", logging.INFO)
-        self._logger.setLevel(level)
+        self._logger.setLevel(logging.DEBUG)
 
         #
         # Set logging to go to both a file rotated at midnight each day
