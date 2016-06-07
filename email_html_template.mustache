@@ -12,17 +12,18 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
     <!-- Latest compiled and minified JavaScript -->
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"></script>
+
 </head>
 <body>
 <style>
     .row {
-    margin-bottom: 125px;
-    margin-top: 10px;
+        margin-bottom: 50px;
+        margin-top: 10px;
     }
 
     h4 {
-    margin-top: 0px;
-    margin-bottom: 0px;
+        margin-top: 0px;
+        margin-bottom: 0px;
     }
 
 </style>
@@ -31,15 +32,17 @@
 
     {{#each articles }}
         <div class="row">
-            <div class="col-sm-3">
+            <div class="col-sm-2 col-sm-offset-1">
                 {{#thumbnail}}
-                    <a href="{{href}}"><img class="img-responsive" width=300 src="{{src}}"/></a>
+                    <a href="{{href}}">
+                        <img class="img-responsive img-thumbnail" src="{{src}}"/>
+                    </a>
                 {{/thumbnail}}
             </div>
-            <div class="col-sm-5">
+            <div class="col-sm-8">
                 <h4><a href="{{href}}">{{title}}</a></h4>
                 <em>
-                    <small>{{ added_date }} {{#if authors}}- {{authors}}{{/if}}</small>
+                    <small>{{ datetime_added }} {{#if authors}}- {{authors}}{{/if}}</small>
                 </em>
                 {{#each tags }}
                     {{#with this}}

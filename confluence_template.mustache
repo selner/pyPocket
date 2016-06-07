@@ -1,0 +1,69 @@
+<ac:structured-macro ac:macro-id="32df8557-18f5-4d9a-8da0-f4c281041dc2" ac:name="html" ac:schema-version="1">
+  <ac:plain-text-body><![CDATA[
+      <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/css/bootstrap.min.css">
+        <style>
+
+            .row {
+
+                margin-bottom: 50px;
+
+                margin-top: 10px;
+
+            }
+
+
+            h4 {
+
+                margin-top: 0px;
+
+                margin-bottom: 0px;
+
+            }
+
+
+        </style>
+
+
+      ]]></ac:plain-text-body>
+</ac:structured-macro>
+
+
+<ac:structured-macro ac:macro-id="32df8557-18f5-4d9a-8da0-f4c281041dc2" ac:name="html" ac:schema-version="1">
+  <ac:plain-text-body><![CDATA[
+    <div class="container-fluid">
+        {{#each articles }}
+            <div class="row">
+                <div class="col-sm-2 col-sm-offset-1">
+                    {{#thumbnail}}
+                        <a href="{{href}}">
+                            <img class="img-responsive img-thumbnail" src="{{src}}"/>
+                        </a>
+                    {{/thumbnail}}
+                </div>
+                <div class="col-sm-8">
+                    <h4><a href="{{href}}">{{title}}</a></h4>
+                    <em>
+                        <small>{{ datetime_added }} {{#if authors}}- {{authors}}{{/if}}</small>
+                    </em>
+                    {{#each tags }}
+                        {{#with this}}
+                            <span class="label label-default">{{this}}</span>
+                        {{/with}}
+                    {{/each}}<br/>
+                    <!-- <small><a href="{{href}}">{{href}}</a></small>-->
+                    {{ excerpt }}
+                </div>
+            </div>
+        {{/each}}
+    </div>
+
+
+{{#empty}}
+    <p>Error: no articles found to output.</p>
+{{/empty}}
+
+      ]]></ac:plain-text-body>
+
+</ac:structured-macro>
+
+
